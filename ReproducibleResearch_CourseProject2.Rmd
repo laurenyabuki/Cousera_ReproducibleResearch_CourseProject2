@@ -1,0 +1,128 @@
+---
+title: "ReproducibleResearch_CourseProject2"
+author: "Lauren"
+date: "23/09/2020"
+output: html_document
+---
+
+# Data Processing 
+
+## Downloading and reading data
+```{r, echo=TRUE}
+setwd("C:/Users/Usuario/Documents/R/Cousera_ReproducibleResearch_CourseProject2")
+
+if (!file.exists("repdata-data-StormData.csv.bz2")){
+        URL<- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+        download.file(url=URL, destfile = "repdata-data-StormData.csv.bz2")
+}
+
+data<- read.csv("repdata-data-StormData.csv.bz2", header = T)
+head(data)
+```
+
+## Selecting the variables of interest to answer both questions
+```{r, echo=T}
+library(lubridate)
+library(dplyr)
+data<- mutate(data, year=year(mdy_hms(data$BGN_DATE)))
+
+health_total <- aggregate(cbind(FATALITIES,INJURIES) ~ EVTYPE + year, data, sum)
+economic_total <- aggregate(cbind(PROPDMG,CROPDMG) ~ EVTYPE + year, data, sum)
+```
+
+## Preparing data for question 1: 
+
+Selecting the top ranked events in FATALITIES and INJURIES by arrange(). The data was order first by FATALITIES and hen INJURIES.
+```{r, echo=TRUE}
+library(dplyr)
+health_total_arranged<- arrange(health_total, desc(FATALITIES), desc(INJURIES))
+head(health_total_arranged, 10)
+health_total_arranged$EVTYPE<-gsub("EXCESSIVE HEAT", "HEAT", health_total_arranged$EVTYPE)
+```
+
+## Preparing data for question 2: 
+
+The data was rearrenged in order to the variables about economic damage to be all in the same column (variable)
+```{r, echo=TRUE}
+library(reshape2)
+economic_total_long <- melt(economic_total, id=c("year", "EVTYPE"))
+```
+
+The type of events names were substituted to eliminate misswriting and duplicates. Also, in order to better represent the comparison, the events were grouped by my non-specialist criteria,
+```{r, echo=TRUE, cache=TRUE}
+economic_total_long$EVTYPE <- as.character(economic_total_long$EVTYPE)
+table(economic_total_long$EVTYPE)
+economic_total_long$EVTYPE[grepl("TORNADO|TORNADOS|TYPHOON|MICROBURST|TORNDAO|WATERSPOUT|GUSTNADO|DOWNBURST|SPOUT|TROPICAL DEPRESSION|WAYTERSPOUT|FUNNEL|FUNNELS|CLOULD",economic_total_long$EVTYPE, ignore.case=T)]<- "SEASONAL ATMOSFERIC PHENOMENA (TORNADOS, TROPICAL DEPREESIONS, WATERSOUTS, ETC.)"
+economic_total_long$EVTYPE[grepl("TORRENTIAL|TROPICAL STORM|RAIN|RAINFALL|PRECIPITATION|STORM|SHOWER|PRECIPATATION", economic_total_long$EVTYPE, ignore.case=T)]<-"RAINS AND STORMS"
+economic_total_long$EVTYPE[grepl("THUNDERST.|THUNDERSTORM|THUNDEERSTORM|THUNDERESTORM|TSTM|HAIL|LIGHTNING|LIGHTING|LIGNTNING|LIGHTNING.",  economic_total_long$EVTYPE, ignore.case=T)]<- "THUNDERSTORMS"
+economic_total_long$EVTYPE[grepl("FLOOD|FLOODS|FLOOODING|HIGH WATER|RAPIDLY RISING WATER", economic_total_long$EVTYPE, ignore.case=T)]<-"FLOODS"
+economic_total_long$EVTYPE[grepl("THUNDERSNOW", economic_total_long$EVTYPE, ignore.case=T)]<-"THUNDERSNOW"
+economic_total_long$EVTYPE[grepl("COLD|COOL|SNOW|FREEZ.|WINTER.|BLIZZARD|FROST|FOG|GLAZE|DRIZZLE|ICE|ICY|WINTRY|HYPOTHERMIA|LOW TEMPERATURE|RECORD LOW", economic_total_long$EVTYPE, ignore.case=T)]<- "COLD"
+economic_total_long$EVTYPE[grepl("HOT|WARM|WARMTH|HEAT|HIGH TEMPERATURE|HYPERTHERMIA|RECORD HIGH", economic_total_long$EVTYPE, ignore.case=T)]<-"HEAT"
+economic_total_long$EVTYPE[grepl("DRY|DROUGHT|DRIEST", economic_total_long$EVTYPE, ignore.case=T)]<-"DROUGHT"
+economic_total_long$EVTYPE[grepl("FIRE|SMOKE", economic_total_long$EVTYPE, ignore.case=T)]<-"FIRE"
+economic_total_long$EVTYPE[grepl("WET",  economic_total_long$EVTYPE, ignore.case=T)]<-"WET WHEATHER"
+economic_total_long$EVTYPE[grepl("COAST.|BEACH|TIDE|TIDAL|SEA|SEAS|MARINE|SWELL|SURF|SURF.|HIGH WAVES|ROGUE WAVE|SEICHE",  economic_total_long$EVTYPE, ignore.case=T)]<-"COASTAL ISSUES"
+economic_total_long$EVTYPE[grepl("DUST|WIND.|.WIND|WIND|WND|GUSTY",  economic_total_long$EVTYPE, ignore.case=T)]<-"WIND AND DUST"
+economic_total_long$EVTYPE[grepl("MIX",  economic_total_long$EVTYPE, ignore.case=T)]<-"MIXED EVENTS"
+economic_total_long$EVTYPE[grepl("DAM", economic_total_long$EVTYPE, ignore.case=T)]<-"DAM BREAKS/SLIDES"
+economic_total_long$EVTYPE[grepl(".SLIDE|SLIDE|SLID.|SLUMP", economic_total_long$EVTYPE, ignore.case=T)]<-"SLIDES"
+economic_total_long$EVTYPE[grepl("VOLCANO|VOLCANIC|AVALANC.|HURRICANE|TSUNAMI", economic_total_long$EVTYPE, ignore.case=T)]<-"NATURAL CATASTROPHIES (VOLCANIC ERUPTIONS, AVALANCHES.HURRICANES AND TSUNAMIS)"
+economic_total_long$EVTYPE[grepl("URBAN|STREAM|STRM", economic_total_long$EVTYPE, ignore.case=T)]<-"RARE NATURAL CATASTROPHIES"
+economic_total_long$EVTYPE[grepl("RECORD TEMPERATURE|RECORD TEMPERATURES|RED FLAG CRITERIA|REMNANTS OF FLOYD|MILD PATTERN|MONTHLY TEMPERATURE|HIGH|APACHE COUNTY", economic_total_long$EVTYPE, ignore.case=T)]<-"UNKNOWN/NOT INFORMED"
+economic_total_long$EVTYPE[!grepl("SEASONAL ATMOSFERIC PHENOMENA (TORNADOS, TROPICAL DEPREESIONS, WATERSOUTS, ETC.)|RAINS AND STORMS|THUNDERSTORMS|THUNDERSNOW|FLOODS|COLD|HEAT|DROUGHT|FIRE|WET WHEATHER|COASTAL ISSUES|WIND AND DUST|MIXED EVENTS|DAM BREAKS/SLIDES|SLIDES|NATURAL CATASTROPHIES (VOLCANIC ERUPTIONS, AVALANCHES.HURRICANES AND TSUNAMIS)|RARE NATURAL CATASTROPHIES|UNKNOWN/NOT INFORMED", economic_total_long$EVTYPE, ignore.case=T)]<-"OTHERS"
+```
+
+
+Data was agreggated by sum once again to get the total number of each group of events
+```{r, echo=TRUE}
+economic_total_plot <- aggregate(value~year+EVTYPE+variable, economic_total_long, sum)
+```
+
+To make it easier to plot, some variables names were changed
+```{r, echo=TRUE}
+economic_total_plot$variable<-as.character(economic_total_plot$variable)
+economic_total_plot$variable[grepl("PROPDMG", economic_total_plot$variable, ignore.case=T)]<-"PROPERTY DAMAGE"
+economic_total_plot$variable[grepl("CROPDMG", economic_total_plot$variable, ignore.case=T)]<-"CROP DAMAGE"
+names(economic_total_plot)[2]="Type of event"
+```
+
+# Results
+
+# Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+```{r, echo=TRUE}
+library(ggplot2)
+
+g1<- ggplot(aes(x = year, y= FATALITIES), data=health_total_arranged[1:10,])
+        g1+geom_bar(stat="identity")+
+        facet_grid(.~EVTYPE)+
+        labs(y="number of occurrences", x="year", title= "Fatalities per year by event")+ 
+        theme_bw()
+```
+
+Tornado and Heat presented higher number of fatalities and both event types have shown an increase in recent years.
+```{r, echo=TRUE}
+g2<- ggplot(aes(x = year, y= INJURIES), data=health_total_arranged[1:10,])
+        g2+geom_bar(stat="identity")+
+        facet_grid(.~EVTYPE)+
+        labs(y="number of occurrences", x="year", title= "Injuries per year by event")+
+        theme_bw()
+
+```
+
+
+Again, Tornado and Heat presented higher number of injuries. Injuries by heat seem to be more recent while tornado related injuries are reported since 1960's.
+
+# Across the United States, which types of events have the greatest economic consequences?
+
+```{r, echo=TRUE}
+g3<- ggplot(data=economic_total_plot,  aes(x=year, y=value, colour=`Type of event`))+
+                geom_line()+
+                facet_grid(.~variable)+
+                labs(y="number of occurrences", x="year", title= "Economical damage per year by event")+
+                theme_bw()  
+g3
+```
+
+Thunderstorms presented the greatest impacts for both property and crop damage, followed by rains and storms, heat and cold. 
